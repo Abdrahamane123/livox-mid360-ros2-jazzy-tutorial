@@ -39,6 +39,53 @@ You must update these values for your own setup:
 
 ---
 
+## Scripts
+
+Two helper scripts are available in the `scripts/` folder to speed up the setup.
+
+### `scripts/install.sh`
+
+Automates **steps 4 to 7** (dependencies, GCC 11, Livox-SDK2, workspace creation and driver clone).
+
+```bash
+chmod +x scripts/install.sh
+./scripts/install.sh
+```
+
+> **Note:** This script does **not** configure `MID360_config.json` or build the driver.  
+> You still need to complete steps 8 and 9 manually.
+
+---
+
+### `scripts/setup_network.sh`
+
+Automates **step 2** (netplan static IP configuration and connectivity test).
+
+> **Warning:** Before running this script, open it and adapt these three hardcoded values to your setup:
+> - Ethernet interface name (default: `enp0s31f6`)
+> - PC static IP (default: `192.168.1.5`)
+> - LiDAR IP for the ping test (default: `192.168.1.109`)
+
+```bash
+chmod +x scripts/setup_network.sh
+./scripts/setup_network.sh
+```
+
+---
+
+### `config/MID360_config.json`
+
+A reference configuration file is provided in the `config/` folder.  
+Copy it to your driver config directory and adapt the IP addresses:
+
+```bash
+cp config/MID360_config.json ~/ws_livox/src/livox_ros_driver2/config/MID360_config.json
+```
+
+Then update `192.168.1.5` (PC IP) and `192.168.1.109` (LiDAR IP) as described in step 8.
+
+---
+
 ## 1. Check the Ethernet Interface
 
 ```bash
