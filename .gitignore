@@ -1,0 +1,17 @@
+# Build files
+build/
+install/
+log/
+*.pyc
+__pycache__/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal config (ne pas partager son IP personnelle potentiellement)
+config/MID360_config.json
