@@ -1,25 +1,67 @@
-# Livox Mid-360 with ROS 2 Jazzy on Ubuntu 24.04
+# Livox Mid-360 on Ubuntu 24.04 with ROS 2 Jazzy
 
-This guide documents the working setup for a **Livox Mid-360** on **Ubuntu 24.04** with **ROS 2 Jazzy**.
+This guide explains how to install, configure, and run a **Livox Mid-360** on **Ubuntu 24.04** with **ROS 2 Jazzy**.
 
 ## Tested Setup
 
 - Ubuntu 24.04
 - ROS 2 Jazzy
 - Livox Mid-360
-- PC Ethernet IP: `192.168.1.5`
-- LiDAR IP: `192.168.1.109`
-- Ethernet interface: `enp0s31f6`
+- Ethernet RJ45 connection
+
+## Important Variables to Adapt
+
+You must update these values for your own setup:
+
+- **Ethernet interface name**  
+  Example in this guide: `enp0s31f6`
+
+- **PC static IP**  
+  Example in this guide: `192.168.1.5`
+
+- **LiDAR IP**  
+  Livox Mid-360 usually uses an IP like:
+
+  ```text
+  192.168.1.1xx
+  ```
+
+  In many cases, `xx` matches the last two digits associated with the LiDAR serial shown on the box or label.
+
+  Example used here:
+
+  ```text
+  192.168.1.109
+  ```
+
+- **Workspace path**  
+  Example in this guide: `~/ws_livox`
 
 ---
 
-## 1. Configure the Ethernet interface
+## 1. Check the Ethernet Interface
 
-Create a Netplan config:
+```bash
+ip link
+```
+
+Example result:
+
+```text
+enp0s31f6
+```
+
+---
+
+## 2. Configure a Static IP
+
+Create:
 
 ```bash
 sudo nano /etc/netplan/01-livox.yaml
 ```
+
+Example:
 
 ```yaml
 network:
@@ -31,21 +73,38 @@ network:
         - 192.168.1.5/24
 ```
 
-Apply it:
+Apply:
 
 ```bash
 sudo netplan apply
 ```
 
-Verify connectivity:
+Verify:
+
+```bash
+ip a
+```
+
+---
+
+## 3. Check LiDAR Connectivity
+
+Test the LiDAR IP:
 
 ```bash
 ping 192.168.1.109
 ```
 
+If you do not know the LiDAR IP, check the device label/box or scan the subnet:
+
+```bash
+sudo apt install -y nmap
+nmap -sn 192.168.1.0/24
+```
+
 ---
 
-## 2. Install dependencies
+## 4. Install Dependencies
 
 ```bash
 sudo apt update
@@ -55,14 +114,24 @@ sudo apt install -y \
   cmake \
   libpcap-dev \
   libyaml-cpp-dev \
-  python3-colcon-common-extensions \
-  gcc-11 \
-  g++-11
+  python3-colcon-common-extensions
 ```
 
 ---
 
-## 3. Install Livox-SDK2
+## 5. Install GCC 11 / G++ 11
+
+On Ubuntu 24.04, **Livox-SDK2 may fail with the default compiler**.  
+Installing and using **gcc-11 / g++-11** avoids many build errors.
+
+```bash
+sudo apt update
+sudo apt install -y gcc-11 g++-11
+```
+
+---
+
+## 6. Install Livox-SDK2
 
 ```bash
 cd ~
@@ -77,7 +146,7 @@ sudo make install
 sudo ldconfig
 ```
 
-Check installation:
+Verify:
 
 ```bash
 ls -l /usr/local/lib/liblivox_lidar_sdk_shared.so
@@ -85,7 +154,7 @@ ls -l /usr/local/lib/liblivox_lidar_sdk_shared.so
 
 ---
 
-## 4. Install livox_ros_driver2
+## 7. Create the ROS 2 Workspace
 
 ```bash
 mkdir -p ~/ws_livox/src
@@ -93,13 +162,17 @@ cd ~/ws_livox/src
 git clone https://github.com/Livox-SDK/livox_ros_driver2.git
 ```
 
-Edit the config file:
+---
+
+## 8. Configure the Mid-360
+
+Edit:
 
 ```bash
 nano ~/ws_livox/src/livox_ros_driver2/config/MID360_config.json
 ```
 
-Use this working configuration:
+Example:
 
 ```json
 {
@@ -145,7 +218,15 @@ Use this working configuration:
 }
 ```
 
-Build the driver:
+Update:
+- `192.168.1.5` with your PC IP
+- `192.168.1.109` with your LiDAR IP
+
+---
+
+## 9. Build the Driver
+
+Use the provided build script:
 
 ```bash
 cd ~/ws_livox/src/livox_ros_driver2
@@ -153,29 +234,96 @@ source /opt/ros/jazzy/setup.sh
 ./build.sh jazzy
 ```
 
-Source the workspace:
+Then source the workspace:
 
 ```bash
 source ~/ws_livox/install/setup.bash
 ```
 
----
-
-## 5. Run the LiDAR
-
-Check topics:
+Optional:
 
 ```bash
+echo "source ~/ws_livox/install/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
+
+---
+
+## 10. Launch the Mid-360
+
+For visualization in RViz2, use:
+
+```bash
+ros2 launch livox_ros_driver2 rviz_MID360_launch.py
+```
+
+This was the working command in this setup.
+
+You can also verify the topics:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+source ~/ws_livox/install/setup.bash
 ros2 topic list | grep livox
 ```
 
-Check publish rate:
+Example:
+
+```text
+/livox/imu
+/livox/lidar
+```
+
+Check data rate:
 
 ```bash
 ros2 topic hz /livox/lidar
 ```
 
-Launch with RViz2:
+---
+
+## Common Issues
+
+### `package.xml does not exist`
+Use the provided script instead of a plain `colcon build`:
+
+```bash
+cd ~/ws_livox/src/livox_ros_driver2
+./build.sh jazzy
+```
+
+### `Could not find LIVOX_LIDAR_SDK_LIBRARY`
+Livox-SDK2 is not installed correctly. Verify:
+
+```bash
+ls -l /usr/local/lib/liblivox_lidar_sdk_shared.so
+```
+
+### SDK build errors on Ubuntu 24.04
+Install and use GCC 11 / G++ 11:
+
+```bash
+sudo apt install -y gcc-11 g++-11
+cmake .. -DCMAKE_C_COMPILER=gcc-11 -DCMAKE_CXX_COMPILER=g++-11
+```
+
+### LiDAR detected but no data published
+Make sure the LiDAR IP in `MID360_config.json` matches the real device IP.
+
+---
+
+## Working Example
+
+- Ethernet interface: `enp0s31f6`
+- PC IP: `192.168.1.5`
+- LiDAR IP: `192.168.1.109`
+- Workspace: `~/ws_livox`
+
+---
+
+## Quick Start
+
+If everything is already installed:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
@@ -185,15 +333,8 @@ ros2 launch livox_ros_driver2 rviz_MID360_launch.py
 
 ---
 
-## Notes
-
-- `msg_MID360_launch.py` runs the driver, but `rviz_MID360_launch.py` is the working launch file for visualization.
-- On Ubuntu 24.04, `Livox-SDK2` may fail with the default compiler. Building with **gcc-11/g++-11** fixed the issue.
-- If logs show `found lidar not defined in the user-defined config`, verify the LiDAR IP in `MID360_config.json`.
-
----
-
 ## References
 
 - [Livox-SDK2](https://github.com/Livox-SDK/Livox-SDK2)
 - [livox_ros_driver2](https://github.com/Livox-SDK/livox_ros_driver2)
+- [ROS 2 Jazzy Documentation](https://docs.ros.org/en/jazzy/index.html)
